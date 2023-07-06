@@ -513,6 +513,7 @@ defmodule Crisp.WorkerSupervisor do
          {:ok, pid} <- start_worker(spec, job, state) do
       Client.queue_job(state.queue_name, job, :running)
       mod_running = Map.get(running, spec.module, %{})
+      Process.send(pid, {:init_callback, nil}, [])
 
       mod_running_new =
         Map.put(mod_running, job_id, {time_usecs(), job, pid, :running})

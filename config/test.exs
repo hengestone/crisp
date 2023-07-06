@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :logger, :console,
   format: {Crisp.DevLogger, :format},

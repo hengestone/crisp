@@ -35,12 +35,13 @@ defmodule Crisp.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:csv, "~> 2.4"},
       {:cowboy, "~>2.9"},
+      {:csv, "~> 2.4"},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},
       {:glob, "~> 1.0"},
       {:hashids, "~> 2.0"},
       {:jason, "~>1.3"},
+      {:logger_file_backend, "~> 0.0.13"},
       {:mimerl, "~> 1.2"},
       {:mox, "~> 0.5", only: :test},
       {:redix, "~> 1.1"},

@@ -95,7 +95,7 @@ defmodule Crisp.Demo do
 
   defp queue_jobs_setup() do
     Server.start()
-    qname = "demo-#{time_usecs()}"
+    qname = "demo-queue"
     queue = Queue.new(qname, runlimit: 10)
     {{:ok, _}, queue} = Server.create_queue(queue)
 

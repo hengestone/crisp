@@ -26,6 +26,7 @@ defmodule Crisp.TestWorker do
   @impl true
   @spec id(pid) :: {:ok, binary}
   def id(pid) do
+    Process.send_after(pid, {:exit, :normal}, :random.uniform(10))
     GenServer.call(pid, :id)
   end
 
@@ -47,5 +48,21 @@ defmodule Crisp.TestWorker do
   @spec handle_cast({:exit, any}, map) :: {:stop, any, map}
   def handle_cast({:exit, reason}, state) do
     {:stop, reason, state}
+  end
+
+  @impl true
+  @spec handle_info({atom, any}, map) :: {atom, any, map}
+  def handle_info({:init_callback, _reason}, state) do
+    Process.send_after(self(), {:exit, :normal}, :rand.uniform(10_000))
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:exit, reason}, state) do
+    {:stop, reason, state}
+  end
+
+  def handle_info(_, state) do
+    {:noreply, state}
   end
 end
