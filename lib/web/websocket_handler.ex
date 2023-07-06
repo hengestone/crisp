@@ -54,7 +54,8 @@ defmodule Crisp.WebsocketHandler do
   end
 
   # Topic message handler
-  @spec websocket_info({atom, binary}, any) :: {:ok, any} | {:ok, [{:text, any}, ...], any}
+  @spec websocket_info({atom, binary}, any) ::
+          {:ok, any} | {:ok, [{:text, any}, ...], any}
   def websocket_info({_topic, message}, state) do
     {[{:text, message}], state}
   end
@@ -63,7 +64,6 @@ defmodule Crisp.WebsocketHandler do
     Process.send_after(self(), :ping, 15_000)
     {[:ping], state}
   end
-
 
   # fallback message handler
   def websocket_info(info, state) do

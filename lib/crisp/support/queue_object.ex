@@ -27,15 +27,14 @@ defmodule Crisp.QueueObject do
              |> CSV.decode(headers: @fields, separator: sep)
              |> Enum.take(1) do
           [ok: obj_map] ->
-            new_obj = Map.merge(%__MODULE__{}, Utilities.decode(obj_map, @types))
+            new_obj =
+              Map.merge(%__MODULE__{}, Utilities.decode(obj_map, @types))
 
             if new_obj.version == version() do
               {:ok, new_obj}
             else
               {:error,
-               "version mismatch: got #{new_obj.version}, current is #{
-                 version()
-               }"}
+               "version mismatch: got #{new_obj.version}, current is #{version()}"}
             end
 
           [error: error] ->

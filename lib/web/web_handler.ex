@@ -179,6 +179,7 @@ defmodule Crisp.WebHandler do
 
   def handle_info(:queue_counts, state) do
     Logger.debug("Queue counts")
+
     case timer_running(state.count_timer) do
       true ->
         Logger.debug("Timer already running, skipping")
@@ -230,6 +231,7 @@ defmodule Crisp.WebHandler do
 
   defp schedule_event(state, event_type, timer, delay) do
     Logger.debug("Schedule event")
+
     case {timer_running(Map.get(state, timer)), map_size(state.queues_updated)} do
       {true, _} ->
         {:ok, state}

@@ -72,7 +72,6 @@ defmodule Crisp.Demo do
     WorkerSupervisor.start_runnable()
   end
 
-
   @spec count_jobs(%{queue: Crisp.Queue.t()}) :: any
   def count_jobs(status) do
     Server.queue_counts(status.queue)

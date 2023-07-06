@@ -17,7 +17,7 @@ defmodule Crisp.Server do
   def start() do
     with {:ok, pid} when is_pid(pid) <- start_link([]),
          {:pid, reg_pid} when is_pid(reg_pid) <-
-             {:pid, Process.whereis(__MODULE__)} do
+           {:pid, Process.whereis(__MODULE__)} do
       update_local()
     else
       {:error, {:already_started, _pid}} ->
@@ -35,7 +35,7 @@ defmodule Crisp.Server do
   end
 
   @spec start_link(maybe_improper_list | map) ::
-            :ignore | {:error, any} | {:ok, pid}
+          :ignore | {:error, any} | {:ok, pid}
   def start_link(opts) when is_list(opts), do: start_link(Map.new(opts))
 
   def start_link(opts) when is_map(opts) do
@@ -158,16 +158,16 @@ defmodule Crisp.Server do
     case list_remote_queues(state) do
       {:ok, lines} ->
         queues =
-            for line <- lines do
-              with {:ok, queue} <- Queue.from_csv(line) do
-                {to_atom(queue.name), queue}
-              else
-                {:error, _} ->
-                  nil
-              end
+          for line <- lines do
+            with {:ok, queue} <- Queue.from_csv(line) do
+              {to_atom(queue.name), queue}
+            else
+              {:error, _} ->
+                nil
             end
-            |> Enum.filter(fn e -> !is_nil(e) end)
-            |> Map.new()
+          end
+          |> Enum.filter(fn e -> !is_nil(e) end)
+          |> Map.new()
 
         {:reply, :ok, Map.put(state, :queues, queues)}
 
@@ -190,23 +190,23 @@ defmodule Crisp.Server do
   @impl true
   def handle_call({:create_queue, %Queue{} = queue}, _from, state) do
     retval =
-        Redix.pipeline(
-          state.conn,
+      Redix.pipeline(
+        state.conn,
+        [
           [
-            [
-              "ZADD",
-              "#{state.namespace}_queues",
-              time_usecs(),
-              Queue.to_csv(queue)
-            ],
-            [
-              "PUBLISH",
-              pulse(state.namespace, queue.name),
-              Event.new(:create, :queue, info: queue.name)
-              |> Event.to_csv()
-            ]
+            "ZADD",
+            "#{state.namespace}_queues",
+            time_usecs(),
+            Queue.to_csv(queue)
+          ],
+          [
+            "PUBLISH",
+            pulse(state.namespace, queue.name),
+            Event.new(:create, :queue, info: queue.name)
+            |> Event.to_csv()
           ]
-        )
+        ]
+      )
 
     aname = to_atom(queue.name)
     {:reply, {retval, queue}, put_in(state, [:queues, aname], queue)}
@@ -215,22 +215,22 @@ defmodule Crisp.Server do
   @impl true
   def handle_call({:delete_queue, %Queue{} = queue}, _from, state) do
     cmds =
-        :lists.append(
-          remove_subqueue_commands(queue.name, state.namespace),
+      :lists.append(
+        remove_subqueue_commands(queue.name, state.namespace),
+        [
           [
-            [
-              "ZREM",
-              "#{state.namespace}_queues",
-              Queue.to_csv(queue)
-            ],
-            [
-              "PUBLISH",
-              pulse(state.namespace, queue.name),
-              Event.new(:remove, :queue, info: queue.name)
-              |> Event.to_csv()
-            ]
+            "ZREM",
+            "#{state.namespace}_queues",
+            Queue.to_csv(queue)
+          ],
+          [
+            "PUBLISH",
+            pulse(state.namespace, queue.name),
+            Event.new(:remove, :queue, info: queue.name)
+            |> Event.to_csv()
           ]
-        )
+        ]
+      )
 
     retval = Redix.pipeline(state.conn, cmds)
 
@@ -248,15 +248,15 @@ defmodule Crisp.Server do
   def handle_call({:queue_counts, queue_name}, _from, state)
       when is_binary(queue_name) do
     retval =
-        Redix.pipeline(
-          state.conn,
-          for db_name <- @subqueues do
-            [
-              "ZCARD",
-              subqueue(state.namespace, queue_name, db_name)
-            ]
-          end
-        )
+      Redix.pipeline(
+        state.conn,
+        for db_name <- @subqueues do
+          [
+            "ZCARD",
+            subqueue(state.namespace, queue_name, db_name)
+          ]
+        end
+      )
 
     case retval do
       {:ok, counts} ->
@@ -269,8 +269,8 @@ defmodule Crisp.Server do
               :counts,
               to_atom(queue_name),
               info:
-                  Crisp.QueueCounts.new(counts)
-                  |> Crisp.QueueCounts.to_csv(":")
+                Crisp.QueueCounts.new(counts)
+                |> Crisp.QueueCounts.to_csv(":")
             )
             |> Event.to_csv()
           ]
@@ -301,14 +301,14 @@ defmodule Crisp.Server do
 
   defp queue_runnable_jobs(%Queue{} = queue, %QueueCounts{} = qcounts, state) do
     retval =
-        Redix.command(
-          state.conn,
-          [
-            "ZPOPMIN",
-            subqueue(state.namespace, queue.name, :queued),
-            queue.runlimit - (qcounts.running + qcounts.runnable)
-          ]
-        )
+      Redix.command(
+        state.conn,
+        [
+          "ZPOPMIN",
+          subqueue(state.namespace, queue.name, :queued),
+          queue.runlimit - (qcounts.running + qcounts.runnable)
+        ]
+      )
 
     case retval do
       {:ok, []} ->
@@ -316,11 +316,11 @@ defmodule Crisp.Server do
 
       {:ok, lines} when is_list(lines) ->
         cmds =
-            queue_mult_job_commands(
-              queue.name,
-              Enum.take_every(lines, 2),
-              state.namespace
-            )
+          queue_mult_job_commands(
+            queue.name,
+            Enum.take_every(lines, 2),
+            state.namespace
+          )
 
         {status, retval} = Redix.pipeline(state.conn, cmds)
         {:reply, {status, {qcounts, retval}}, state}
@@ -349,14 +349,12 @@ defmodule Crisp.Server do
       fn job_csv, acc ->
         with {:ok, job} <- Job.from_csv(job_csv),
              {add, publish} <-
-                 queue_job_commands(queue_name, job, :runnable, namespace) do
+               queue_job_commands(queue_name, job, :runnable, namespace) do
           [add | [publish | acc]]
         else
           error ->
             Logger.warn(
-              "Skipping invalid job description:\n#{inspect(job_csv)}\n#{
-                  inspect(error)
-              }"
+              "Skipping invalid job description:\n#{inspect(job_csv)}\n#{inspect(error)}"
             )
 
             acc

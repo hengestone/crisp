@@ -43,12 +43,12 @@ defmodule Crisp.WorkerSupervisor do
     %{
       dequeue_delay: @dequeue_delay,
       dequeue_timer: nil,
-        # Map of pid => exit reason
+      # Map of pid => exit reason
       exited_pids: %{},
       namespace: "",
       pid: nil,
       poll_delay: @poll_delay,
-        # Timestamp of the last job fetched
+      # Timestamp of the last job fetched
       poll_last: 0,
       poll_max_fetch: @poll_max_fetch,
       poll_timer: nil,
@@ -57,37 +57,37 @@ defmodule Crisp.WorkerSupervisor do
       run_timer: nil,
       state: :initial_state,
       subscriptions: [],
-        # Map of job_id, {time_usecs, spec}
+      # Map of job_id, {time_usecs, spec}
       runnable: %{},
-        # Map of %Module{job_id=>{time_usecs, pid, module, :state}}
+      # Map of %Module{job_id=>{time_usecs, pid, module, :state}}
       running: %{},
-        # Map of pid=>{Module, job_id}
+      # Map of pid=>{Module, job_id}
       running_pids: %{},
-        # Map of glob/worker_spec
+      # Map of glob/worker_spec
       worker_specs: %{}
     }
   end
 
   @impl true
   @spec init(list) ::
-            {:ok, map}
-            | {:stop, any}
+          {:ok, map}
+          | {:stop, any}
   def init(args) do
     if is_nil(Process.whereis(Client)), do: Client.start()
 
     arg_state =
-        Map.merge(
-          initial_state(),
-          Map.new(args)
-          |> Map.take(@config_items)
-        )
+      Map.merge(
+        initial_state(),
+        Map.new(args)
+        |> Map.take(@config_items)
+      )
 
     queue_name = Keyword.get(args, :queue_name, "default_queue_name")
 
     with {:ok, pubsub} <- Redix.PubSub.start_link(),
          pulse <- pulse(Client.namespace(), queue_name),
          {:ok, _ref} <- Redix.PubSub.subscribe(pubsub, pulse, self()) do
-        # Start fetching jobs after a short tick
+      # Start fetching jobs after a short tick
       Process.send_after(self(), :schedule_poll, 10)
 
       {
@@ -95,7 +95,7 @@ defmodule Crisp.WorkerSupervisor do
         Map.merge(
           arg_state,
           %{
-            namespace: Client.namespace,
+            namespace: Client.namespace(),
             pid: self(),
             pubsub: pubsub,
             queue_name: queue_name,
@@ -176,8 +176,7 @@ defmodule Crisp.WorkerSupervisor do
     }
   end
 
-
-#  Event handler for Redis :message notifications
+  #  Event handler for Redis :message notifications
   @impl true
   def handle_info(
         {
@@ -203,13 +202,13 @@ defmodule Crisp.WorkerSupervisor do
     Logger.debug("Process #{inspect(pid)} exited: #{inspect(reason)}")
 
     dequeue_timer =
-        case timer_running(state.dequeue_timer) do
-          true ->
-            state.dequeue_timer
+      case timer_running(state.dequeue_timer) do
+        true ->
+          state.dequeue_timer
 
-          _ ->
-            Process.send_after(self(), :dequeue_exited_jobs, state.dequeue_delay)
-        end
+        _ ->
+          Process.send_after(self(), :dequeue_exited_jobs, state.dequeue_delay)
+      end
 
     new_exited_pids = Map.put(state.exited_pids, pid, reason)
 
@@ -233,12 +232,12 @@ defmodule Crisp.WorkerSupervisor do
   def handle_info(:poll_runnable_queue, state) do
     with {:runnable, 0} <- {:runnable, map_size(state.runnable)},
          {:ok, jobs} =
-             Client.fetch_newer_jobs(
-               state.queue_name,
-               :runnable,
-               state.poll_last,
-               @poll_max_fetch
-             ),
+           Client.fetch_newer_jobs(
+             state.queue_name,
+             :runnable,
+             state.poll_last,
+             @poll_max_fetch
+           ),
          poll_state <- handle_polled_jobs(jobs, state),
          last_poll_state <- Map.merge(poll_state, %{poll_last: List.last(jobs)}) do
       {:noreply, last_poll_state}
@@ -275,11 +274,11 @@ defmodule Crisp.WorkerSupervisor do
 
   def handle_info(:dequeue_exited_jobs, state) do
     {_pids, {_queue_name, new_running_jobs, new_running_pids}} =
-        Enum.map_reduce(
-          state.exited_pids,
-          {state.queue_name, state.running, state.running_pids},
-          &handle_job_exit/2
-        )
+      Enum.map_reduce(
+        state.exited_pids,
+        {state.queue_name, state.running, state.running_pids},
+        &handle_job_exit/2
+      )
 
     {
       :noreply,
@@ -297,68 +296,68 @@ defmodule Crisp.WorkerSupervisor do
   # Info support functions -----------------------------------------------------
   def start_runnable(state) do
     {result, {new_runnable, new_running, _state}} =
-        Enum.map_reduce(
-          state.runnable,
-          {state.runnable, state.running, state},
-          &start_worker_queued/2
-        )
+      Enum.map_reduce(
+        state.runnable,
+        {state.runnable, state.running, state},
+        &start_worker_queued/2
+      )
 
     {_discard, pids} =
-        Enum.map_reduce(
-          result,
-          [],
-          fn rval, acc ->
-            case rval do
-              {:ok, pid, module, job_id} ->
-                {true, [{pid, {module, job_id}} | acc]}
+      Enum.map_reduce(
+        result,
+        [],
+        fn rval, acc ->
+          case rval do
+            {:ok, pid, module, job_id} ->
+              {true, [{pid, {module, job_id}} | acc]}
 
-              _ ->
-                {false, acc}
-            end
+            _ ->
+              {false, acc}
           end
-        )
+        end
+      )
 
     new_running_pids = Map.merge(state.running_pids, Map.new(pids))
 
     running_state =
-        Map.merge(
-          state,
-          %{
-            running: new_running,
-            runnable: new_runnable,
-            running_pids: new_running_pids
-          }
-        )
+      Map.merge(
+        state,
+        %{
+          running: new_running,
+          runnable: new_runnable,
+          running_pids: new_running_pids
+        }
+      )
 
     handle_info(:schedule_poll, running_state)
   end
 
   def handle_polled_jobs(jobs, state) do
     {_vals, new_state} =
-        Enum.map_reduce(
-          Enum.take_every(jobs, 2),
-          state,
-          fn job_info, acc ->
-            case Job.from_csv(job_info) do
-              {:ok, job} ->
-                handle_pubsub_event(
-                  %Crisp.Event{
-                    action: "runnable",
-                    info: Job.to_csv(job, ":"),
-                    object: "job"
-                  },
-                  acc
-                )
+      Enum.map_reduce(
+        Enum.take_every(jobs, 2),
+        state,
+        fn job_info, acc ->
+          case Job.from_csv(job_info) do
+            {:ok, job} ->
+              handle_pubsub_event(
+                %Crisp.Event{
+                  action: "runnable",
+                  info: Job.to_csv(job, ":"),
+                  object: "job"
+                },
+                acc
+              )
 
-              error ->
-                Logger.info(
-                  "Skipping invalid job spec \n#{job_info}\n#{inspect(error)}"
-                )
+            error ->
+              Logger.info(
+                "Skipping invalid job spec \n#{job_info}\n#{inspect(error)}"
+              )
 
-                {:ok, acc}
-            end
+              {:ok, acc}
           end
-        )
+        end
+      )
 
     new_state
   end
@@ -377,32 +376,32 @@ defmodule Crisp.WorkerSupervisor do
     Logger.debug("Job RUNNABLE event #{Event.to_csv(event)}")
 
     new_runnable_map =
-        Enum.map(
-          state.worker_specs,
-          fn {glob, spec} ->
-            with {:glob, true} <- {:glob, :glob.matches(job_info, glob)},
-                 {:ok, %Job{} = job} <- Job.from_csv(job_info, ?:),
-                 {:running_check, job_id} when is_binary(job_id) <-
-                     {:running_check, Map.get(state.running, job.id, job.id)} do
-              {job.id, {time_usecs(), spec, job}}
-            else
-              {:glob, false} ->
-                Logger.debug("glob #{inspect(glob)} is not a match, skipping")
-                {}
+      Enum.map(
+        state.worker_specs,
+        fn {glob, spec} ->
+          with {:glob, true} <- {:glob, :glob.matches(job_info, glob)},
+               {:ok, %Job{} = job} <- Job.from_csv(job_info, ?:),
+               {:running_check, job_id} when is_binary(job_id) <-
+                 {:running_check, Map.get(state.running, job.id, job.id)} do
+            {job.id, {time_usecs(), spec, job}}
+          else
+            {:glob, false} ->
+              Logger.debug("glob #{inspect(glob)} is not a match, skipping")
+              {}
 
-              {:running_check, %{}} ->
-                Logger.debug("Job already running, skipping")
+            {:running_check, %{}} ->
+              Logger.debug("Job already running, skipping")
 
-                {}
+              {}
 
-              {:error, msg} ->
-                Logger.error(inspect(msg))
-                {}
-            end
+            {:error, msg} ->
+              Logger.error(inspect(msg))
+              {}
           end
-        )
-        |> Enum.filter(fn tuple -> tuple != {} end)
-        |> Map.new()
+        end
+      )
+      |> Enum.filter(fn tuple -> tuple != {} end)
+      |> Map.new()
 
     {
       :ok,
@@ -418,7 +417,7 @@ defmodule Crisp.WorkerSupervisor do
 
   def schedule_event(delay, timer_key, msg, state) do
     case {delay, timer_running(Map.get(state, timer_key))} do
-        # timer disabled, pass
+      # timer disabled, pass
       {0, _} ->
         {:noreply, state}
 
@@ -452,11 +451,13 @@ defmodule Crisp.WorkerSupervisor do
 
   @impl true
   def handle_call({:update_state, opts}, _from, state) do
-    new_state = Map.merge(
-      state,
-      Map.new(opts)
-      |> Map.take(@config_items)
-    )
+    new_state =
+      Map.merge(
+        state,
+        Map.new(opts)
+        |> Map.take(@config_items)
+      )
+
     {:reply, new_state, new_state}
   end
 
@@ -470,15 +471,15 @@ defmodule Crisp.WorkerSupervisor do
     with pattern <- job_pattern(job),
          {:ok, glob} <- :glob.compile(pattern),
          %{} = worker_specs <-
-             Map.merge(
-               state.worker_specs,
-               %{
-                 glob => %{
-                   module: module,
-                   max: max
-                 }
+           Map.merge(
+             state.worker_specs,
+             %{
+               glob => %{
+                 module: module,
+                 max: max
                }
-             ) do
+             }
+           ) do
       {
         :reply,
         {:ok, worker_specs},
@@ -508,13 +509,13 @@ defmodule Crisp.WorkerSupervisor do
       ) do
     with {:allowed, true} <- {:allowed, workers_available(running, spec)},
          {:dequeue, {:ok, _job_id}} <-
-             {:dequeue, Client.dequeue_job(state.queue_name, job, :runnable)},
+           {:dequeue, Client.dequeue_job(state.queue_name, job, :runnable)},
          {:ok, pid} <- start_worker(spec, job, state) do
       Client.queue_job(state.queue_name, job, :running)
       mod_running = Map.get(running, spec.module, %{})
 
       mod_running_new =
-          Map.put(mod_running, job_id, {time_usecs(), job, pid, :running})
+        Map.put(mod_running, job_id, {time_usecs(), job, pid, :running})
 
       Process.monitor(pid)
       Process.unlink(pid)
@@ -571,9 +572,7 @@ defmodule Crisp.WorkerSupervisor do
 
       {:error, term} ->
         Logger.error(
-          "Calling #{spec.module}.start() with job argument #{inspect(job)} returned\n#{
-              inspect(term)
-          }"
+          "Calling #{spec.module}.start() with job argument #{inspect(job)} returned\n#{inspect(term)}"
         )
 
         {:error, :worker_start_error}
@@ -604,7 +603,7 @@ defmodule Crisp.WorkerSupervisor do
          {_pid, new_running_pids} <- Map.pop(running_pids, pid),
          {_worker_info, new_module_workers} <- Map.pop(module_workers, job_id),
          %{} = new_running_jobs <-
-             Map.put(running_jobs, module, new_module_workers) do
+           Map.put(running_jobs, module, new_module_workers) do
       {pid, {queue_name, new_running_jobs, new_running_pids}}
     else
       unexpected ->
@@ -617,7 +616,7 @@ defmodule Crisp.WorkerSupervisor do
   end
 
   @spec exit_queue(:normal | :shutdown | {:shutdown, any} | any) ::
-            :failed | :finished
+          :failed | :finished
   defp exit_queue(reason) do
     case reason do
       :normal -> :finished

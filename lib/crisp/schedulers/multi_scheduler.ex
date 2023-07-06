@@ -121,8 +121,7 @@ defmodule Crisp.MultiScheduler do
     Server.update_local()
 
     with {:queue, %Queue{} = queue} <-
-           {:queue,
-            Map.get(Server.queues(), String.to_atom(queue_name))},
+           {:queue, Map.get(Server.queues(), String.to_atom(queue_name))},
          {:ok, pubsub} <- Redix.PubSub.start_link(),
          {:ok, _ref} <-
            Redix.PubSub.psubscribe(
@@ -358,7 +357,12 @@ defmodule Crisp.MultiScheduler do
           | {:error, any}
   def worker_counts(state) do
     with name_cmds when is_list(name_cmds) <- runnable_worker_jobs_cmd(state),
-         {names, cmds} <- name_cmds |> Enum.reverse() |> Enum.reduce({[], []}, fn {name, cmd}, {names, cmds}  -> {[name | names], [cmd | cmds]} end),
+         {names, cmds} <-
+           name_cmds
+           |> Enum.reverse()
+           |> Enum.reduce({[], []}, fn {name, cmd}, {names, cmds} ->
+             {[name | names], [cmd | cmds]}
+           end),
          {:ok, worker_counts} <- Redix.pipeline(state.conn, cmds) do
       {:ok, names, worker_counts}
     else
@@ -425,11 +429,7 @@ defmodule Crisp.MultiScheduler do
 
       _ ->
         Logger.info(
-          "schedule event #{event_type} -> #{delay}ms #{
-            inspect(
-              Map.take(state, [:jobs_queued, :slots_avail, :queues_updated])
-            )
-          }"
+          "schedule event #{event_type} -> #{delay}ms #{inspect(Map.take(state, [:jobs_queued, :slots_avail, :queues_updated]))}"
         )
 
         {:noreply,

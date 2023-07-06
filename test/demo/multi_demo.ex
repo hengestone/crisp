@@ -53,7 +53,8 @@ defmodule Crisp.MultiDemo do
       max: 5
     }
 
-    {:ok, pid} = MultiScheduler.start(queue_name: qname, queue_pattern: "worker-*")
+    {:ok, pid} =
+      MultiScheduler.start(queue_name: qname, queue_pattern: "worker-*")
 
     %{queue: queue, pid: pid, spec: spec, worker_queues: worker_queues}
   end

@@ -135,7 +135,7 @@ defmodule Crisp.Client do
 
   @spec state :: binary
   def namespace() do
-    Map.get(GenServer.call(__MODULE__, :state) ,:namespace)
+    Map.get(GenServer.call(__MODULE__, :state), :namespace)
   end
 
   @spec state :: map

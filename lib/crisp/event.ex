@@ -33,5 +33,4 @@ defmodule Crisp.Event do
       object: object
     }
   end
-
 end
