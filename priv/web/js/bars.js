@@ -22,17 +22,26 @@ var bgColors = [
   "rgb(176, 149, 0)"
 ];
 var ctx = document.getElementById("bar-chart");
-var myChart = new Chart(ctx, {
+var myChart = new window.Chart(ctx, {
   type: "bar",
   data: {
     labels: ["Queued", "Runnable", "Running", "Finished", "Failed"],
     datasets: [
       {
-        label: "Number of Jobs",
-        data: [0, 0, 0, 0, 0],
+        label: "Jobs1",
+        data: [1, 1, 2, 3, 4],
         barPercentage: 1,
         // categoryPercentage: 1,
         backgroundColor: fgColors,
+        borderColor: bgColors,
+        borderWidth: 1
+      },
+      {
+        label: "Jobs2",
+        data: [2, 1, 4, 3, 1],
+        barPercentage: 1,
+        // categoryPercentage: 1,
+        backgroundColor: bgColors,
         borderColor: bgColors,
         borderWidth: 1
       }
@@ -45,16 +54,12 @@ var myChart = new Chart(ctx, {
       }
     },
     scales: {
-      yAxes: [
-        {
-          type: "logarithmic",
-          ticks: {
-            beginAtZero: true,
-            max: 1000.0,
-            min: 0.9
-          }
-        }
-      ]
+      x: {
+        stacked: true
+      },
+      y: {
+        stacked: true
+      }
     }
   }
 });
@@ -64,8 +69,9 @@ function ri(max) {
 }
 
 function onReceive(name, new_counts) {
+  return;
   myChart.data.datasets[0].data = new_counts;
-  myChart.data.datasets[0].label = name;
+  // myChart.data.datasets[0].label = name;
   myChart.update({
     preservation: false
   });
