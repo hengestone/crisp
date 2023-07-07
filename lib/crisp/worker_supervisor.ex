@@ -28,15 +28,17 @@ defmodule Crisp.WorkerSupervisor do
   ]
 
   # Genserver Client part ------------------------------------------------------
-  @spec start(list) :: :ok
+  @spec start(keyword) :: :ignore | {:error, any} | {:ok, pid}
   def start(list) do
     start_link(list)
-    :ok
   end
 
   @spec start_link(list) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(init_arg) do
-    GenServer.start_link(__MODULE__, init_arg, name: __MODULE__)
+    queue_name = Keyword.get(init_arg, :queue_name, "default_queue_name")
+    name = "WorkerSupervisor-#{queue_name}"
+    IO.inspect({:init_arg, init_arg})
+    GenServer.start_link(__MODULE__, init_arg, name: String.to_atom(name))
   end
 
   def initial_state() do
@@ -83,6 +85,7 @@ defmodule Crisp.WorkerSupervisor do
       )
 
     queue_name = Keyword.get(args, :queue_name, "default_queue_name")
+    IO.inspect(queue_name)
 
     with {:ok, pubsub} <- Redix.PubSub.start_link(),
          pulse <- pulse(Client.namespace(), queue_name),
@@ -113,6 +116,10 @@ defmodule Crisp.WorkerSupervisor do
   @spec register_worker(atom, integer, map) :: :ok
   def register_worker(module, max, pattern) do
     GenServer.call(__MODULE__, {:register_worker, module, max, pattern})
+  end
+
+  def register_worker(pid, module, max, pattern) when is_pid(pid) do
+    GenServer.call(pid, {:register_worker, module, max, pattern})
   end
 
   @spec state :: map
@@ -295,6 +302,7 @@ defmodule Crisp.WorkerSupervisor do
 
   # Info support functions -----------------------------------------------------
   def start_runnable(state) do
+    IO.inspect(state)
     {result, {new_runnable, new_running, _state}} =
       Enum.map_reduce(
         state.runnable,

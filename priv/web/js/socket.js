@@ -1,3 +1,5 @@
+import {onReceive} from "./bars.js"
+
 function ws_subscribe() {
   var host = window.location.host;
   var protocol = window.location.protocol == "https" ? "wss" : "ws";
@@ -35,4 +37,5 @@ function ws_data_event(message) {
 function ws_disconnect() {
   console.log("disconnected");
 }
+console.log("About to connect");
 setTimeout(ws_subscribe, 1000);

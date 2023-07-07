@@ -4,7 +4,8 @@ defmodule Crisp.MultiDemo do
     Job,
     MultiScheduler,
     Queue,
-    Server
+    Server,
+    WorkerSupervisor
   }
 
   def queue_jobs(
@@ -19,18 +20,20 @@ defmodule Crisp.MultiDemo do
         Client.queue_job(
           worker_queue,
           Job.new("multi_queue_job_#{i}", node: "provider-site"),
-          :runnable
+          :queued
         )
     end
 
     :ok
   end
 
-  @spec teardown(:queue_jobs, %{queue: Crisp.Queue.t()}) :: any
-  def teardown(:queue_jobs, status) do
+  def teardown(:queue_jobs, %{worker_queues: worker_queues}) do
     Server.start()
-    Process.sleep(50)
-    Server.delete_queue(status.queue)
+
+    Enum.each(worker_queues, fn {_, queue} ->
+      Process.sleep(50)
+      Server.delete_queue(queue)
+    end)
   end
 
   def setup() do
@@ -57,5 +60,27 @@ defmodule Crisp.MultiDemo do
       MultiScheduler.start(queue_name: qname, queue_pattern: "worker-*")
 
     %{queue: queue, pid: pid, spec: spec, worker_queues: worker_queues}
+  end
+
+  def register_jobs(%{spec: spec, worker_queues: worker_queues}) do
+    Enum.each(worker_queues, fn {_, queue} ->
+      {:ok, pid} =
+        WorkerSupervisor.start(
+          queue_name: queue.name,
+          poll_delay: 1000,
+          run_delay: 1000
+        )
+
+      WorkerSupervisor.register_worker(pid, spec.module, spec.max, %Job{
+        version: Job.version(),
+        node: "provider-site"
+      })
+    end)
+  end
+
+  def schedule_jobs_cycle(%{spec: _spec, worker_queues: worker_queues}) do
+    Enum.each(worker_queues, fn {_, queue} ->
+      Server.queue_runnable(queue)
+    end)
   end
 end
